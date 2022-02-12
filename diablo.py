@@ -1,19 +1,21 @@
-from python_imagesearch.imagesearch import imagesearcharea
-from python_imagesearch.imagesearch import region_grabber
 from win32gui import GetWindowText, GetForegroundWindow
 import keyboard
-import mouse
+#import mouse
 import time
 import datetime
 import win32com.client
 import os
 import re
+import pyautogui
+
 speaker = win32com.client.Dispatch("SAPI.SpVoice")
 #my_config = [{'name':'Greater Rift','keymap':{'./z.bmp':'z', './x.bmp':'x', './c.bmp':'c', './left.bmp':'left'} },{'name':'Bounties'}]
-my_conf=[]
+
 start_time=datetime.datetime.now()
-interval_map = {'v':[3000,start_time]}
-def read_conf(my_config):
+interval_map = {'b':[3000,start_time]}
+
+def read_conf():
+    my_config=[]
     iterdir = iter(os.walk("."))
     next(iterdir)
     for root, dirs, files in iterdir:
@@ -21,27 +23,34 @@ def read_conf(my_config):
         my_config[len(my_config)-1]['keymap']={}
         for each_file in files:
             my_config[len(my_config)-1]['keymap'][each_file]=re.search('(.*)\.bmp', each_file, re.IGNORECASE).group(1)
-    return True
-#im_region=(627, 997, 1027, 1063)
-im_region=(1254, 2000, 2054, 2126)
-precision=0.999
-im_width = im_region[2] - im_region[0]
-im_height = im_region[3] - im_region[1]
+    return my_config
+
+#im_region=(startx,starty,width,height)
+im_region=(1254,2000,800,126)
+
+#set the confidence level when searching images
+confidence=0.999
+
+#set save_actionbar to False after setting up to gain performance
+save_actionbar = False
+
 aux=-1
-heat=-1
 build=0
-read_conf(my_conf)
+
+my_conf=read_conf()
 print (my_conf)
+
 while 1:
     if GetWindowText(GetForegroundWindow()) == "Diablo III" and aux == 1:
-        #if heat<8:
-        #    keyboard.press_and_release('v')
-        #    heat=heat+1
-        im = region_grabber(im_region)
-        im.save("actionbar.png")
+        #save actionbar       
+        if save_actionbar:
+            #capture action bar
+            im = pyautogui.screenshot(region=im_region) 
+            im.save("actionbar.png")
+        #for every image in the build directory
         for ifile in my_conf[build]['keymap']:
-            pos = imagesearcharea(my_conf[build]['name']+"/"+ifile,0,0,im_width,im_height,precision,im)
-            if pos[0] != -1:
+            image_location=pyautogui.locateOnScreen(my_conf[build]['name']+"/"+ifile,confidence=confidence,region=im_region)
+            if image_location:
                 if len(my_conf[build]['keymap'][ifile]) == 1:
                     keyboard.press_and_release(my_conf[build]['keymap'][ifile])
                 else:
@@ -54,11 +63,9 @@ while 1:
             if int(((now - interval_map[item][1])*1000).seconds)  > interval_map[item][0]:
                 keyboard.press_and_release(item)
                 interval_map[item][1] = now
-        time.sleep(0.5)
+        time.sleep(0.1)
     if keyboard.is_pressed('shift+a'):
-        #heat=-1
         aux=aux*-1
-        print(aux)
         if aux == 1:
             speaker.Speak('Starting '+str(my_conf[build]['name']))
         else:
@@ -69,3 +76,6 @@ while 1:
         else:
             build=build+1
         speaker.Speak(my_conf[build]['name'])
+    time.sleep(0.01)
+#todo:
+#setup build from shortcut

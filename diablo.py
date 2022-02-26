@@ -1,69 +1,71 @@
 from win32gui import GetWindowText, GetForegroundWindow
-import keyboard
-#import mouse
-import time
-import datetime
-import win32com.client
-import os
-import re
-import pyautogui
+from PIL import Image
+import keyboard, time, datetime, win32com.client, os
+import pyautogui, json
 
-speaker = win32com.client.Dispatch("SAPI.SpVoice")
-#my_config = [{'name':'Greater Rift','keymap':{'./z.bmp':'z', './x.bmp':'x', './c.bmp':'c', './left.bmp':'left'} },{'name':'Bounties'}]
-
-start_time=datetime.datetime.now()
-interval_map = {'b':[3000,start_time]}
-
-def read_conf():
-    my_config=[]
-    iterdir = iter(os.walk("."))
-    next(iterdir)
-    for root, dirs, files in iterdir:
-        my_config.append({'name':root[2:]})
-        my_config[len(my_config)-1]['keymap']={}
-        for each_file in files:
-            my_config[len(my_config)-1]['keymap'][each_file]=re.search('(.*)\.bmp', each_file, re.IGNORECASE).group(1)
-    return my_config
-
-#im_region=(startx,starty,width,height)
-im_region=(1254,2000,800,126)
+#List with keys used to play
+key_setup = ['z','x','c','v']
 
 #set the confidence level when searching images
-confidence=0.999
+confidence=0.9
 
-#set save_actionbar to False after setting up to gain performance
-save_actionbar = False
-
+#auxiliar variables
 aux=-1
 build=0
 
+start_time=datetime.datetime.now()
+speaker = win32com.client.Dispatch("SAPI.SpVoice")
+
+#Read json into config
+def read_conf():
+    my_config=[]
+    try:
+        f = open('my_conf.json')
+        my_config = json.load(f)
+    except:
+        pass
+    #for every build, load the image file for every key
+    for build in my_config:
+        build['key_image']={}
+        for key in build['keys']:
+            build['key_image'][key]=Image.open(build['name']+"/"+key+".bmp")
+    return my_config
+
+def new_build(my_conf):
+    build={}
+    build['keys']={}
+    build_name=str(len(my_conf)+1)
+    os.mkdir(build_name)
+    build['name']=build_name
+    speaker.Speak('Setup')
+    for ekey in key_setup:
+        speaker.Speak("Key "+ ekey+ ". Move mouse to top left of skill and press shift.")
+        while not keyboard.is_pressed('shift'):
+            pass
+        top_skill=pyautogui.position()
+        speaker.Speak("Key "+ ekey+ ". Move mouse to bottom right of skill and press shift.")
+        while not keyboard.is_pressed('shift'):
+            pass
+        bottom_skill=pyautogui.position()
+        im = pyautogui.screenshot(region=[top_skill[0],top_skill[1],bottom_skill[0]-top_skill[0],bottom_skill[1]-top_skill[1]]) 
+        im.save(build_name+"/"+ekey+".bmp")
+        build['keys'][ekey]=[top_skill[0],top_skill[1],bottom_skill[0]-top_skill[0],bottom_skill[1]-top_skill[1]]
+    my_conf.append(build)
+    with open('my_conf.json', 'w') as f:
+        json.dump(my_conf, f)
+    speaker.Speak("We're done setting up.")
+    return my_conf
+
 my_conf=read_conf()
-print (my_conf)
 
 while 1:
     if GetWindowText(GetForegroundWindow()) == "Diablo III" and aux == 1:
-        #save actionbar       
-        if save_actionbar:
-            #capture action bar
-            im = pyautogui.screenshot(region=im_region) 
-            im.save("actionbar.png")
-        #for every image in the build directory
-        for ifile in my_conf[build]['keymap']:
-            image_location=pyautogui.locateOnScreen(my_conf[build]['name']+"/"+ifile,confidence=confidence,region=im_region)
+        #for every key in the build
+        for key in my_conf[build]['keys']:
+            image_location=pyautogui.locateOnScreen(my_conf[build]['key_image'][key],confidence=confidence,region=my_conf[build]['keys'][key])
             if image_location:
-                if len(my_conf[build]['keymap'][ifile]) == 1:
-                    keyboard.press_and_release(my_conf[build]['keymap'][ifile])
-                else:
-                    #keyboard.press('shift')
-                    #mouse.click(my_conf[build]['keymap'][ifile])
-                    #keyboard.release('shift')            
-                    pass
-        for item in interval_map:
-            now=datetime.datetime.now()
-            if int(((now - interval_map[item][1])*1000).seconds)  > interval_map[item][0]:
-                keyboard.press_and_release(item)
-                interval_map[item][1] = now
-        time.sleep(0.1)
+                keyboard.press_and_release(key)
+            time.sleep(0.1)
     if keyboard.is_pressed('shift+a'):
         aux=aux*-1
         if aux == 1:
@@ -76,6 +78,6 @@ while 1:
         else:
             build=build+1
         speaker.Speak(my_conf[build]['name'])
-    time.sleep(0.01)
-#todo:
-#setup build from shortcut
+    if keyboard.is_pressed('shift+s'):
+        my_conf=new_build(my_conf)
+    time.sleep(0.1)

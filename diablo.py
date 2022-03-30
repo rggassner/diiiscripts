@@ -1,3 +1,4 @@
+#pip install pyautogui, keyboard, pillow, pywin32, opencv-python
 from win32gui import GetWindowText, GetForegroundWindow
 from PIL import Image
 import keyboard, time, datetime, win32com.client, os

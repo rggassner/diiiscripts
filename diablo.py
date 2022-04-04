@@ -1,4 +1,3 @@
-#pip install pyautogui, keyboard, pillow, pywin32, opencv-python
 from win32gui import GetWindowText, GetForegroundWindow
 from PIL import Image
 import keyboard, time, datetime, win32com.client, os
@@ -6,6 +5,12 @@ import pyautogui, json
 
 #List with keys used to play
 key_setup = ['z','x','c','v']
+
+#Interval after searching for all skills
+a_interval=0.1
+
+#Interval after searching every skills
+s_interval=0.1
 
 #set the confidence level when searching images
 confidence=0.9
@@ -52,10 +57,11 @@ def new_build(my_conf):
         im.save(build_name+"/"+ekey+".bmp")
         build['keys'][ekey]=[top_skill[0],top_skill[1],bottom_skill[0]-top_skill[0],bottom_skill[1]-top_skill[1]]
     my_conf.append(build)
+    for build in my_conf:
+        build.pop('key_image', None)
     with open('my_conf.json', 'w') as f:
         json.dump(my_conf, f)
     speaker.Speak("We're done setting up.")
-    return my_conf
 
 my_conf=read_conf()
 
@@ -66,7 +72,7 @@ while 1:
             image_location=pyautogui.locateOnScreen(my_conf[build]['key_image'][key],confidence=confidence,region=my_conf[build]['keys'][key])
             if image_location:
                 keyboard.press_and_release(key)
-            time.sleep(0.1)
+            time.sleep(s_interval)
     if keyboard.is_pressed('shift+a'):
         aux=aux*-1
         if aux == 1:
@@ -80,5 +86,6 @@ while 1:
             build=build+1
         speaker.Speak(my_conf[build]['name'])
     if keyboard.is_pressed('shift+s'):
-        my_conf=new_build(my_conf)
-    time.sleep(0.1)
+        new_build(my_conf)
+        my_conf=read_conf()
+    time.sleep(a_interval)
